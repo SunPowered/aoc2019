@@ -92,7 +92,7 @@ def parse_opcode(v: int):
 
 def debug(msg):
     if DEBUG:
-        print(msg)
+        print("--" + msg)
 
 def run_program(program: list):
     mem = program.copy()
@@ -176,6 +176,21 @@ def test2():
     # run_program([3,9,8,9,10,9,4,9,99,-1,8])
 # test2()
 
+def test3():
+    # run_program([3,9,8,9,10,9,4,9,99,-1,8])  # Output 1 if input is equal to 8, 0 if not
+    # run_program([3,9,7,9,10,9,4,9,99,-1,8])  # Output 1 if input is less than 8, 0 otherwise
+    # run_program([3,3,1108,-1,8,3,4,3,99])  # Output 1 is input is equalt to 8, using immediate mode
+    # run_program([3,3,1107,-1,8,3,4,3,99])  # Output 1 if input is less than 8, 0 otherwise using immediate mode
+    
+    run_program([3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9])  # Output 0 if the input is 0, 1 otherwise
+    # This is broken when evaluating input of 0.  But why?
+    # It seems as though the code is broken, specifically at memory location 2: [6, 12, 15].  Jump if False, position 12 to position 15.  Position 12 is the input provide
+    # Thus if a zero is provided as input, it wants to jump to position 15, which is the last entry or '9'.  This is a bad opcode and no output ensues...  
+    # I'm confused.
+
+    # run_program([3,3,1105,-1,9,1101,0,0,12,4,12,99,1])  # Same as above, with immediate mode
+test3()
+
 def go():
     # Read program
     with open(in_file) as f:
@@ -183,5 +198,5 @@ def go():
 
     run_program(mem)
 
-go()
+# go()
 
