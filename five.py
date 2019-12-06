@@ -60,7 +60,7 @@ def op_output(mem: list, p1: int, mode_flag=0b000):
 # OPCODE: 05
 def jump_if_true(mem: list, p1:int, p2: int, mode_flag=0b000):
     v1 = get_val(mem, p1, mode_flag & 0b001)
-    if v1 is not 0:
+    if v1 != 0:
         return p2
     return None
 
@@ -92,42 +92,42 @@ def parse_opcode(v: int):
 
 def debug(msg):
     if DEBUG:
-        print("--" + msg)
+        print("D-- " + msg)
 
 def run_program(program: list):
     mem = program.copy()
-    debug("Program length: {}".format(len(mem)))
+    debug("Program size: {}".format(len(mem)))
     idx = 0
     while idx < len(mem):
         opcode, modeflag = parse_opcode(mem[idx])
-        debug("OP_MODE: {} {} | {}".format(idx, opcode, modeflag))
+        # debug("OP_MODE: {} {} | {}".format(idx, opcode, modeflag))
         if opcode == 1:
             p1, p2, p3 = mem[idx+1:idx+4]
-            debug("Add: {} {} {}".format(p1, p2, p3))
+            debug("{} {} | ADD {} {} -> {}".format(idx, mem[idx:idx+4], p1, p2, p3))
             add(mem, p1, p2, p3, modeflag)
             idx += 4
 
         elif opcode == 2:
             p1, p2, p3 = mem[idx+1:idx+4]
-            debug("Multiply: {} {} {}".format(p1, p2, p3))
+            debug("{} {} | MULT {} {} -> {}".format(idx, mem[idx:idx+4], p1, p2, p3))
             multiply(mem, p1, p2, p3, modeflag)
             idx += 4
 
         elif opcode == 3:
             p1 = mem[idx+1]
-            debug("Input: {}".format(p1))
+            debug("{} {} | INP -> {}".format(idx, mem[idx:idx+2], p1))
             op_input(mem, p1)
             idx += 2
 
         elif opcode == 4:
             p1 = mem[idx + 1]
-            debug("Output: {}".format(p1))
+            debug("{} {} | OUTP {}".format(idx, mem[idx:idx+2], p1))
             op_output(mem, p1, modeflag)
             idx += 2
 
         elif opcode == 5:
             p1, p2 = mem[idx + 1: idx+3]
-            debug("Jump if true: {} {}".format(p1, p2))
+            debug("{} {} | JIT {} -> {}".format(idx, mem[idx:idx+3], p1, p2))
             ret = jump_if_true(mem, p1, p2, modeflag)
             if ret is not None:
                 idx = ret
@@ -136,7 +136,7 @@ def run_program(program: list):
 
         elif opcode == 6:
             p1, p2 = mem[idx+1: idx + 3]
-            debug("Jump if false: {} {}".format(p1, p2))
+            debug("{} {} | JIF {} -> {}".format(idx, mem[idx:idx+3], p1, p2))
             ret = jump_if_false(mem, p1, p2, modeflag)
             if ret is not None:
                 idx = ret
@@ -145,22 +145,22 @@ def run_program(program: list):
 
         elif opcode == 7:
             p1, p2, p3 = mem[idx + 1: idx + 4]
-            debug("Less than: {} {} {}".format(p1, p2, p3))
+            debug("{} {} | ISLT {} {} -> {}".format(idx, mem[idx:idx+4], p1, p2, p3))
             is_less_than(mem, p1, p2, p3, modeflag)
             idx += 4
 
         elif opcode == 8:
             p1, p2, p3 = mem[idx + 1: idx + 4]
-            debug("Is Equals: {} {} {}".format(p1, p2, p3))
+            debug("{} {} | ISEQ {} {} -> {}".format(idx, mem[idx:idx+4], p1, p2, p3))
             is_equals(mem, p1, p2, p3, modeflag)
             idx += 4
 
         elif opcode == 99:
-            debug("Program Break")
+            debug("{} {} | BREAK".format(idx, mem[idx]))
             break
         
         else:
-            print("Bad opcode: {}. Exiting".format(opcode))
+            print("{} Bad opcode: {}. Exiting".format(idx, opcode))
             break
     return mem
 
@@ -182,13 +182,15 @@ def test3():
     # run_program([3,3,1108,-1,8,3,4,3,99])  # Output 1 is input is equalt to 8, using immediate mode
     # run_program([3,3,1107,-1,8,3,4,3,99])  # Output 1 if input is less than 8, 0 otherwise using immediate mode
     
-    run_program([3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9])  # Output 0 if the input is 0, 1 otherwise
+    print(run_program([3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9]))  # Output 0 if the input is 0, 1 otherwise
     # This is broken when evaluating input of 0.  But why?
     # It seems as though the code is broken, specifically at memory location 2: [6, 12, 15].  Jump if False, position 12 to position 15.  Position 12 is the input provide
     # Thus if a zero is provided as input, it wants to jump to position 15, which is the last entry or '9'.  This is a bad opcode and no output ensues...  
     # I'm confused.
 
     # run_program([3,3,1105,-1,9,1101,0,0,12,4,12,99,1])  # Same as above, with immediate mode
+
+    # run_program([1107,1,0,7,4,7,99,1])
 test3()
 
 def go():
