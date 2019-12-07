@@ -12,9 +12,14 @@ class ModeFlag(Enum):
     Positional = 0
     Immediate = 1
 
+class StatusFlag(Enum): 
+    READY = 0
+    FINISHED = 1
+    PAUSED = 2
+
 class IntCodeComputer:
 
-    def __init__(self, program: List[int], input_user=None, debug=DebugFlag.OFF):
+    def __init__(self, program: List[int], input_user=None, debug=DebugFlag.OFF, pause_on_output: bool=False):
         """
         An IntCode Computer.
 
@@ -23,11 +28,15 @@ class IntCodeComputer:
             input_user: A flag to tell the computer how to get input.  Leaving it None prompts the user in real time for an input.  Otherwise, the value is converted to an int and used.
                         This is useful for testing the computer with known programs and inputs
             debug_level: A debug flag to spit out more information.  Higher levels are more verbose, 0 is off.
+            pause_on_output: A boolean flag to enable breaking the program on an output command. 
         """
         self.program = program  # Store the original program for reference
         self.memory = program.copy()  # Copy it to memory for working
-        self.input_user = input_user   # User input flag
+        
+        self.set_input_values(input_user)
         self.debug_flag = debug
+        self.pause_on_output = pause_on_output
+        self.status = StatusFlag.READY   # This is set to indicate a progam break, or pause
         self.idx = 0
         self.output_value = None
         self.op_codes = {
@@ -45,12 +54,18 @@ class IntCodeComputer:
         if level.value <= self.debug_flag.value:
             print("D{} -- {}".format(level.value, msg))
 
+    def set_input_values(self, input_vals):
+        if not hasattr(input_vals, '__iter__'):
+            input_vals = [input_vals]
+        self.input_user = (i for i in input_vals)
+
     def set_program(self, program: List[int]):
         # Reset the program
         self.program = program
         self.mem = program.copy()
         self.output_value = None
         self.idx = 0
+        self.status = StatusFlag.READY
 
     def get_value(self, idx: int, mode: int = 0):
         if mode > 0:
@@ -80,47 +95,64 @@ class IntCodeComputer:
 
         return (self.get_value(self.idx + 1 + i, modeflag & 2**i) for i in range(n_args))
 
-    def run(self):
-        print("Running Program:  Size -> {}".format(len(self.program)))
-        self.mem = self.program.copy()  # Load memory with program
+    def run(self, input_vals=None, debug: int=None):
+        if input_vals is not None:
+            self.set_input_values(input_vals)
 
-        self.idx = 0
-        while self.idx < len(self.program):
+        if debug is not None:
+            self.debug_flag = debug
+
+        self.debug("Running Program:  Size -> {}".format(len(self.program)), DebugFlag.LOW)
+        
+        # If the status is already set, then we are resuming.  Otherwise, initialize the run
+        if self.status is StatusFlag.READY :
+            self.mem = self.program.copy()  # Load memory with program
+            self.idx = 0
+        elif self.status is StatusFlag.PAUSED:
+            self.status = StatusFlag.READY  # Reset the status marker
+
+        while self.idx < len(self.program) and self.status is StatusFlag.READY:
             self.debug(str(self.mem), DebugFlag.EXTREME)
             opcode, modeflag = self.parse_opcode(self.mem[self.idx])
             if opcode == 99:
-                print("Program Halt") 
+                self.debug("Program Halt", DebugFlag.LOW) 
+                self.status = StatusFlag.FINISHED
                 break
             try:
                 operation = self.op_codes[opcode]
             except IndexError:
-                print("Bad OP Code: {}.  Exiting".format(opcode))
+               print("Bad OP Code: {}.  Exiting".format(opcode))
             else:
                 operation(modeflag)
 
     def add_x(self, modeflag: int):
+        self.debug(self.mem[self.idx:self.idx+4], DebugFlag.HIGH)
         v1, v2 = self.get_arguments(2, modeflag)
         loc = self.get_value(self.idx + 3, ModeFlag.Immediate.value)
-        self.debug(self.mem[self.idx:self.idx+4], DebugFlag.HIGH)
         self.debug("|{}| ADD: {} + {} -> [{}]".format(self.idx, v1, v2, loc), DebugFlag.MEDIUM)
         self.mem[loc] = v1 + v2
         self.idx += 4
 
     def multiply_x(self, modeflag: int):
+        self.debug(self.mem[self.idx:self.idx+4], DebugFlag.HIGH)
         v1, v2 = self.get_arguments(2, modeflag)
         loc = self.get_value(self.idx + 3, ModeFlag.Immediate.value)
-        self.debug(self.mem[self.idx:self.idx+4], DebugFlag.HIGH)
         self.debug("|{}| MULT: {} * {} -> [{}]".format(self.idx, v1, v2, loc), DebugFlag.MEDIUM)
         self.mem[loc] = v1 * v2
         self.idx += 4
 
     def input_x(self, modeflag: int):
-        loc, = self.get_arguments(1, ModeFlag.Immediate.value)
         self.debug(self.mem[self.idx:self.idx+2], DebugFlag.HIGH)
+        loc, = self.get_arguments(1, ModeFlag.Immediate.value)
         self.debug("|{}| INP: -> [{}]".format(self.idx, loc), DebugFlag.MEDIUM)
 
         if self.input_user is not None:
-            v = int(self.input_user)
+            try:
+                v = int(next(self.input_user))
+            except StopIteration:
+                # we reached the end of the given user inputs, pause the program to wait for additional input to be set
+                self.status = StatusFlag.PAUSED
+                return
         else:
             v = int(input("Enter Input Value: "))
 
@@ -128,17 +160,20 @@ class IntCodeComputer:
         self.idx += 2
 
     def output_x(self, modeflag: int):
-        v, = self.get_arguments(1, modeflag)
         self.debug(self.mem[self.idx:self.idx+2], DebugFlag.HIGH)
+        v, = self.get_arguments(1, modeflag)
         self.debug("|{}| OUT {}".format(self.idx, v), DebugFlag.MEDIUM)
-        print("!! Program Output: {} !!".format(v))
+        self.debug("!! Program Output: {} !!".format(v), DebugFlag.LOW)
         self.output_value = v
         self.idx += 2
 
+        if self.pause_on_output:
+            self.status = StatusFlag.PAUSED
+
     def jump_if_true_x(self, modeflag: int):
-        v1, = self.get_arguments(1, modeflag)
-        loc = self.get_value(self.idx + 2, modeflag)
         self.debug(self.mem[self.idx:self.idx+3], DebugFlag.HIGH)
+        v1, = self.get_arguments(1, modeflag)
+        loc = self.get_value(self.idx + 2, modeflag & 0b010)
         self.debug("|{}| JIT {} -> [{}]".format(self.idx, v1, loc), DebugFlag.MEDIUM)
 
         if v1 != 0:
@@ -147,9 +182,9 @@ class IntCodeComputer:
             self.idx += 3
 
     def jump_if_false_x(self, modeflag: int):
-        v1, = self.get_arguments(1, modeflag)
-        loc = self.get_value(self.idx + 2, modeflag)
         self.debug(self.mem[self.idx:self.idx+3], DebugFlag.HIGH)
+        v1, = self.get_arguments(1, modeflag)
+        loc = self.get_value(self.idx + 2, modeflag & 0b010)
         self.debug("|{}| JIF {} -> [{}]".format(self.idx, v1, loc), DebugFlag.MEDIUM)
 
         if v1 == 0:
@@ -158,21 +193,21 @@ class IntCodeComputer:
             self.idx += 3
 
     def is_less_than_x(self, modeflag: int):
-        v1, v2 = self.get_arguments(2, modeflag)
-        loc = self.get_value(self.idx + 3, ModeFlag.Immediate.value)
         self.debug(self.mem[self.idx:self.idx+4], DebugFlag.HIGH)
+        v1, v2 = self.get_arguments(2, modeflag)
+        loc = self.get_value(self.idx + 3, not(modeflag & 0b100))
         self.debug("|{}| ISLT {} {} -> [{}]".format(self.idx, v1, v2, loc), DebugFlag.MEDIUM)
 
-        self.mem[loc] = int( v1 < v2)
+        self.mem[loc] = int( v1 < v2 )
         self.idx += 4
 
     def is_equals_x(self, modeflag: int):
-        v1, v2 = self.get_arguments(2, modeflag)
-        loc = self.get_value(self.idx + 3, ModeFlag.Immediate.value)
         self.debug(self.mem[self.idx:self.idx+4], DebugFlag.HIGH)
+        v1, v2 = self.get_arguments(2, modeflag)
+        loc = self.get_value(self.idx + 3, not( modeflag & 0b100) ) 
         self.debug("|{}| ISEQ {} {} -> [{}]".format(self.idx, v1, v2, loc), DebugFlag.MEDIUM)
 
-        self.mem[loc] = int( v1 == v2)
+        self.mem[loc] = int( v1 == v2 )
         self.idx += 4
 
 
@@ -192,7 +227,7 @@ def assert_program_output(program: List[int], input_val, expected_output: int, d
 
 def tests_day2():
     # Day 2 tests
-    debug = DebugFlag.LOW
+    debug = DebugFlag.MEDIUM
     
     program, expected = [1,9,10,3,2,3,11,0,99,30,40,50], [3500,9,10,70,2,3,11,0,99,30,40,50]
     assert_program_memory(program, None, expected, debug)
@@ -206,8 +241,8 @@ def tests_day2():
 
 def tests_day5():
     # Day 5 tests
-    debug = DebugFlag.LOW
-    assert_program_output([3,9,8,9,10,9,4,9,99,-1,8], 8, 1, debug=debug)
+    debug = DebugFlag.MEDIUM
+    assert_program_output([3,9,8,9,10,9,4,9,99,-1,8], 8, 1, debug=DebugFlag.EXTREME)
     assert_program_output([3,9,8,9,10,9,4,9,99,-1,8], 7, 0, debug=debug)
 
     assert_program_output([3,9,7,9,10,9,4,9,99,-1,8], 7, 1, debug=debug)
@@ -226,18 +261,30 @@ def tests_day5():
     assert_program_output([3,3,1105,-1,9,1101,0,0,12,4,12,99,1], 0, 0, debug=debug)
     assert_program_output([3,3,1105,-1,9,1101,0,0,12,4,12,99,1], 2, 1, debug=debug)
 
-    assert_program_output([3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,
-1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,
-999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99], 7, 999, debug=debug)
+    assert_program_output([3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31, 
+        1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,
+        999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99], 7, 999, debug=debug)
     
+    assert_program_output([3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,
+        1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,
+        999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99], 8, 1000, debug=debug)
 
     assert_program_output([3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,
-1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,
-999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99], 8, 1000, debug=debug)
+        1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,
+        999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99], 9, 1001, debug=debug)
+
+    print("Day 5 tests passed")
 
 
-    assert_program_output([3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,
-1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,
-999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99], 9, 1001, debug=debug)
-# tests_day2()
-tests_day5()
+def tests_day7():
+    # We need to handle multiple inputs
+    assert_program_output([3, 11, 3, 12, 1, 11, 12, 13, 4, 13, 99, -1 , -1, 9], (3, 5), 8, debug=DebugFlag.LOW)  # Add two input numbers together and output result
+    assert_program_output([3, 11, 3, 12, 1, 11, 12, 13, 4, 13, 99, -1 , -1, 9], (4, 7), 11, debug=DebugFlag.LOW)
+
+#tests_day2()
+# tests_day5()
+#tests_day7()
+
+def jump_tests():
+    assert_program_output([3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9], 0, 0, debug=DebugFlag.EXTREME)
+    assert_program_output([3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9], 2, 1, debug=DebugFlag.EXTREME)
