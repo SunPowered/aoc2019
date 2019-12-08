@@ -130,6 +130,8 @@ def run_tests():
 
 # Run with file input
 def run1():
+	print()
+	print("Part 1")
 	with open(in_file) as f:
 		in1, in2 = f.read().strip().split('\n')
 		in1 = in1.split(',')
@@ -139,6 +141,8 @@ def run1():
 
 # Run with file input
 def run2():
+	print()
+	print("Part 2")
 	with open(in_file) as f:
 		in1, in2 = f.read().strip().split('\n')
 		in1 = in1.split(',')
@@ -147,4 +151,5 @@ def run2():
 	print(run_program_2(in1, in2))
 
 # run_tests()
-run2()
+run1() # 260
+run2() # 15612
