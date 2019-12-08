@@ -40,3 +40,6 @@ with open(in_file) as f:
 	total_fuel = sum([recur_fuel_req(int(line)) for line in f])
 
 print("2. Total Fuel Required: ", total_fuel)
+
+# 1. 3299598
+# 2. 4946546
