@@ -105,12 +105,11 @@ class IntCodeComputer:
         self.debug("Running Program:  Size -> {}".format(len(self.program)), DebugFlag.LOW)
         
         # If the status is already set, then we are resuming.  Otherwise, initialize the run
-        if self.status is StatusFlag.READY :
+        if self.status is StatusFlag.READY or self.status is StatusFlag.FINISHED:
             self.mem = self.program.copy()  # Load memory with program
             self.idx = 0
-        elif self.status is StatusFlag.PAUSED:
-            self.status = StatusFlag.READY  # Reset the status marker
-
+        
+        self.status = StatusFlag.READY
         while self.idx < len(self.program) and self.status is StatusFlag.READY:
             self.debug(str(self.mem), DebugFlag.EXTREME)
             opcode, modeflag = self.parse_opcode(self.mem[self.idx])

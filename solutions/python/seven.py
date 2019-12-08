@@ -1,4 +1,4 @@
-from intcode import IntCodeComputer, DebugFlag, StatusFlag
+from intcode import IntCodeComputer, StatusFlag, DebugFlag
 from itertools import permutations
 #
 # A series of amplifiers needs to be configured.
@@ -13,15 +13,14 @@ from itertools import permutations
 #  We need to brute force all settings permutations, run each through the program, record the output and input if it is a max.
 
 
-# Setup computer with program
-
-with open('input/seven.txt') as f:
-	program = list(map(int, f.read().strip().split(',')))
-
-
-
 def part1():
-	computer = IntCodeComputer(program)
+	print()
+	print("Part 1")
+
+	with open('input/seven.txt') as f:
+		program = list(map(int, f.read().strip().split(',')))
+	computer = IntCodeComputer(program, debug=DebugFlag.OFF)
+	
 	mo = -1
 	mv = None
 
@@ -43,10 +42,15 @@ def part2():
 	# This time a feedback loop, where the output of the last result is fed into the initial and repeated
 	# Phase settings are between 5 and 9, no repeats.
 	# We must initialize and maintain state of all the computers
+	print()
+	print("Part 2")
+	
+	with open('input/seven.txt') as f:
+		program = list(map(int, f.read().strip().split(',')))
 
 	max_val = -1
 	max_phase = None
-
+	
 	for phases in permutations(range(5, 10)):
 
 		# Intiialize computers
@@ -62,7 +66,7 @@ def part2():
 				if computer.status != StatusFlag.FINISHED:
 					computer.run(input_vals=last_output)
 					last_output = computer.output_value
-			print([(c.output_value, c.status) for c in computers])
+			# print([(c.output_value, c.status) for c in computers])
 
 		result = last_output
 		if result > max_val:
@@ -71,5 +75,7 @@ def part2():
 
 	print(max_val, max_phase)
 
-part2()
+part1()  # 118936 (2, 1, 4, 3, 0)
+part2()  # 57660948 (9, 7, 6, 5, 8)
+
 
