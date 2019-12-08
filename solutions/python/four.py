@@ -99,7 +99,15 @@ def brute_force_b(min_r: int, max_r: int):
 
 	print("Counted {} valid passwords in range {}:{}".format(cnt, min_r, max_r))
 
+def part1():
+	print()
+	print("Part 1")
+	brute_force(*password_range)
 
-# brute_force(*password_range)
-brute_force_b(*password_range)
+def part2():
+	print()
+	print("Part 2")
+	brute_force_b(*password_range)
 
+part1()  # 1955
+part2()  # 1319
