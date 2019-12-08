@@ -69,6 +69,7 @@ def test_layer_collecting():
 # test_layer_collecting()
 
 def part1():
+	print("Part 1")
 	with open(in_file) as f:
 		data = list(map(int, f.read().strip()))
 
@@ -80,8 +81,10 @@ def part1():
 
 	# Result is # of 1's in the validation layer multiplied by the number of 2's
 	print(count_values(validation_layer, 1) * count_values(validation_layer, 2))
+	print()
 
 def part2():
+	print("Part 2")
 	with open(in_file) as f:
 		data = list(map(int, f.read().strip()))
 
@@ -97,5 +100,5 @@ def part2():
 	for row in final_image:
 		render_row(row)
 
-
-part2()
+part1()  # 1620
+part2()  # BCYEF
