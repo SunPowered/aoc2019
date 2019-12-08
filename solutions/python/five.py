@@ -24,7 +24,7 @@ Immediate values can be any integer, positive or negative.  Positional are only 
 
 OPCODES are coded as 4 or 5 bit values: The last 2 digits are the opcode, and the remaining preface digits are interpreted as flags for immediate mode of the various parameters.  No value assumes a 0.
 """
-DEBUG = True
+DEBUG = False
 
 def debug(msg):
     if DEBUG:
@@ -203,4 +203,7 @@ def go():
     run_program(mem)
 
 go()
+
+# part 1: provide input of 1: 11049715
+# part 2: provide input of 5: 2140710
 
