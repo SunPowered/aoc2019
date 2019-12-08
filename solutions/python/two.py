@@ -81,11 +81,25 @@ def iter_nv():
 				return n, v
 	return None, None    # No values worked
 
+def part1():
+	mem = data.copy()
+	mem[1] = 12
+	mem[2] = 2
+	run_program(mem)
+	print("Part 1: ", mem[0])
 
-n, v = iter_nv()
+def part2():
+	n, v = iter_nv()
 
-if n is None or v is None:
-	print("No good values found!")
-else:
-	print("Noun: ", n, ". Verb: ", v)
-	print("Output: ", 100 * n + v)
+	if n is None or v is None:
+		print("No good values found!")
+	else:
+		print("Part 2")
+		print("Noun: ", n, ". Verb: ", v)
+		print("Output: ", 100 * n + v)
+
+# part1()  # 3085697
+
+part2()  
+# Noun:  94 . Verb:  25
+# Output:  9425
