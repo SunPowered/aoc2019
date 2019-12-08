@@ -103,11 +103,19 @@ def find_common_ancestor(orbits, nodeA, nodeB):
 
 	return common, dist
 
-orbits = parse_orbits_dir('input/six.txt')
 
-# print(len(list(iter_orbits(orbits))), " orbits")
 
-#print(list(iter_parents(orbits, 'YOU')))
+def part1():
+	print()
+	print("Part 1")
+	orbits = parse_orbits_dir('input/six.txt')
+	print(len(list(iter_orbits(orbits))), " orbits")
 
-#print(list(iter_parents(orbits, 'SAN')))
-print(find_common_ancestor(orbits,  'YOU', 'SAN'))
+def part2():
+	#print(list(iter_parents(orbits, 'YOU')))
+	#print(list(iter_parents(orbits, 'SAN')))
+	orbits = parse_orbits_dir('input/six.txt')
+	print(find_common_ancestor(orbits,  'YOU', 'SAN'))
+
+part1()  # 162439
+part2()  # ('HYC', 367)
