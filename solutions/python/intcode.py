@@ -21,9 +21,40 @@ class StatusFlag(Enum):
 class ArgumentError(Exception):
     pass
 
+class MemoryAddressError(Exception):
+    pass
+
+
+class Memory(list):
+
+    # An expanding memory list-like object, in which memory locations are allocated, if requested, with a default value of 0.
+
+    def __getitem__(self, idx):
+        #if isinstance(idx, int): 
+        #    if idx < 0:
+        #        raise MemoryAddressError("Negative address pointers are disabled")
+        try:
+            return list.__getitem__(self, idx)
+        except IndexError as e:
+            # Expand the list with zeros and return a 0
+            list.extend(self, [0] * (idx - len(self) + 1 ) )
+            return 0
+
+    def __setitem__(self, idx, val):
+        #if isinstance(idx, int): 
+        #    if idx < 0:
+        #        raise MemoryAddressError("Negative address pointers are disabled")
+        try:
+            return list.__setitem__(self, idx, val)
+        except IndexError as e:
+            # Expand the list with zeros and add set the value
+            list.extend(self, [0] * (idx - len(self) + 1))
+            self[-1] = val
+
+
 class IntCodeComputer:
 
-    def __init__(self, program: List[int], input_user=None, debug=DebugFlag.OFF, pause_on_output: bool=False):
+    def __init__(self, program: List[int]=None, input_user=None, debug=DebugFlag.OFF, pause_on_output: bool=False):
         """
         An IntCode Computer.
 
@@ -35,8 +66,9 @@ class IntCodeComputer:
             pause_on_output: A boolean flag to enable breaking the program on an output command. 
         """
         self.program = program  # Store the original program for reference
-        self.memory = program.copy()  # Copy it to memory for working
+        self.memory = Memory()  # Copy it to memory for working
         
+        self.input_user = None
         self.set_input_values(input_user)
         self.debug_flag = debug
         self.pause_on_output = pause_on_output
@@ -52,7 +84,8 @@ class IntCodeComputer:
             5: self.jump_if_true_x,
             6: self.jump_if_false_x,
             7: self.is_less_than_x,
-            8: self.is_equals_x
+            8: self.is_equals_x,
+            9: self.adjust_relative_base_x
         }
 
     def debug(self, msg: str, level: int):
@@ -60,29 +93,52 @@ class IntCodeComputer:
             print("D{} -- {}".format(level.value, msg))
 
     def set_input_values(self, input_vals):
-        if not hasattr(input_vals, '__iter__'):
-            input_vals = [input_vals]
-        self.input_user = (i for i in input_vals)
+        if input_vals is not None:
+            if not hasattr(input_vals, '__iter__'):
+                input_vals = [input_vals]
+            self.input_user = (i for i in input_vals)
 
     def set_program(self, program: List[int]):
         # Reset the program
         self.program = program
-        self.mem = program.copy()
+        # self.load_program()
         self.output_value = None
         self.idx = 0
         self.status = StatusFlag.READY
+
+    def load_program(self, program: List[int] = None):
+        program = program or self.program
+        self.memory = Memory(program.copy())
+
+    def get_readable_value(self, idx: int, mode: ModeFlag = ModeFlag.Positional):
+        value = self.memory[idx]
+
+        if mode == ModeFlag.Positional:
+            return self.memory[value]
+        elif mode == ModeFlag.Immediate:
+            return value
+        elif mode == ModeFlag.Relative:
+            return self.memory[self.relative_base + value]
+
+    def get_writeable_value(self, idx: int, mode: ModeFlag = ModeFlag.Positional):
+        value = self.memory[idx]
+
+        if mode in ( ModeFlag.Positional, ModeFlag.Immediate ):
+            return value
+        elif mode == ModeFlag.Relative:
+            return self.relative_base + value
 
     def get_value(self, idx: int, mode: ModeFlag = ModeFlag.Positional):
         if idx < 0:
             raise ValueError("Bad address location: {}".format(idx))
         
-        value = self.mem[idx]  # The value at the idx pointer
+        value = self.memory[idx]  # The value at the idx pointer
 
         if mode == ModeFlag.Positional:        
             # Return the value at the address 'value'
             if value < 0:
                 raise ValueError("Bad Positional Address Value: {}".format(value))
-            return self.mem[value]
+            return self.memory[value]
         elif mode == ModeFlag.Immediate:
             # Return the value itself
             return value
@@ -103,14 +159,29 @@ class IntCodeComputer:
             modes = [ModeFlag(int(mode_flag)) for mode_flag in sv[:-2][::-1]]
             return int(sv[-2:]), modes
 
-    def get_arguments(self, n_args: int, modes: List[ModeFlag]):
+    def get_arguments(self, n_args: int, modes: List[ModeFlag], writeable=False):
         if n_args > 3:
             raise ValueError("Max arguments are 3")
 
         if len(modes) != n_args:
             raise ValueError("Length modes ({}) must be same number of arguments as requested ({})".format(len(modes), n_args))
 
-        return (self.get_value(self.idx + 1 + i, modes[i]) for i in range(n_args))
+        if writeable:
+            # Need to parse the last argument differently and return the address rather than the value
+            arguments =  [self.get_readable_value(self.idx + 1 + i, modes[i]) for i in range(n_args - 1)]
+            arguments.append(self.get_writeable_value(self.idx + n_args, modes[-1]))
+            return arguments
+        else:
+            return (self.get_readable_value(self.idx + 1 + i, modes[i]) for i in range(n_args))
+
+    def set_output_value(self, v):
+        # If a value exists, make a list and append the new value
+        if isinstance(self.output_value, list):
+            self.output_value.append(v)
+        elif self.output_value is None:
+            self.output_value = v
+        else:
+            self.output_value = [self.output_value, v]
 
     def run(self, input_vals=None, debug: int=None):
         if input_vals is not None:
@@ -123,13 +194,13 @@ class IntCodeComputer:
         self.debug(self.program, DebugFlag.MEDIUM)
         # If the status is already set, then we are resuming.  Otherwise, initialize the run
         if self.status is StatusFlag.READY or self.status is StatusFlag.FINISHED:
-            self.mem = self.program.copy()  # Load memory with program
+            self.load_program()
             self.idx = 0
         
         self.status = StatusFlag.READY
         while self.idx < len(self.program) and self.status is StatusFlag.READY:
-            self.debug(str(self.mem), DebugFlag.EXTREME)
-            opcode, modeflag = self.parse_opcode(self.mem[self.idx])
+            self.debug(str(self.memory), DebugFlag.EXTREME)
+            opcode, modeflag = self.parse_opcode(self.memory[self.idx])
             if opcode == 99:
                 self.debug("Program Halt", DebugFlag.LOW) 
                 self.status = StatusFlag.FINISHED
@@ -149,33 +220,37 @@ class IntCodeComputer:
         modes.extend([v]*(n - len(modes)))
         return modes
 
-    def _pre_operation(self, modeflag: List[ModeFlag], n_args: int, writable_operation=True)-> List[int]:
-        # If writable operation, the last element must be Immediate
+    def _pre_operation(self, modeflag: List[ModeFlag], n_args: int, writeable_operation=True)-> List[int]:
+        # This gets fired at the start of any operation
+        self.debug(self.memory[self.idx:self.idx+n_args+1], DebugFlag.HIGH)
+
         modeflag = self._pad_modeflag(modeflag, n_args)
 
-        if writable_operation:
-            modeflag[-1] = ModeFlag.Immediate
+        # If writable operation, the last element must be Immediate
+        # What about Relative?  203 13 
+        #if writeable_operation:
+        #    modeflag[-1] = ModeFlag.Immediate
 
-        self.debug(self.mem[self.idx:self.idx+n_args+1], DebugFlag.HIGH)
-        
         assert len(modeflag) == n_args
-        return self.get_arguments(n_args, modeflag)
+        
+        return self.get_arguments(n_args, modeflag, writeable=writeable_operation)
 
     # OPCODE: 01
     def add_x(self, modeflag: List[ModeFlag]):
-        v1, v2, loc = self._pre_operation(modeflag, 3)
-        self.mem[loc] = v1 + v2
+
+        v1, v2, loc= self._pre_operation(modeflag, 3)
+        self.memory[loc] = v1 + v2
         self.idx += 4
 
     # OPCODE: 02 
-    def multiply_x(self, modeflag: int):
+    def multiply_x(self, modeflag: List[ModeFlag]):
         v1, v2, loc = self._pre_operation(modeflag, 3)
         self.debug("|{}| MULT: {} * {} -> [{}]".format(self.idx, v1, v2, loc), DebugFlag.MEDIUM)
-        self.mem[loc] = v1 * v2
+        self.memory[loc] = v1 * v2
         self.idx += 4
 
     # OPCODE: 03
-    def input_x(self, modeflag: int):
+    def input_x(self, modeflag: List[ModeFlag]):
         loc, = self._pre_operation(modeflag, 1)
         self.debug("|{}| INP: -> [{}]".format(self.idx, loc), DebugFlag.MEDIUM)
 
@@ -189,23 +264,23 @@ class IntCodeComputer:
         else:
             v = int(input("Enter Input Value: "))
 
-        self.mem[loc] = v
+        self.memory[loc] = v
         self.idx += 2
 
     # OPCODE: 04
-    def output_x(self, modeflag: int):
-        v, = self._pre_operation(modeflag, 1, writable_operation=False)
+    def output_x(self, modeflag: List[ModeFlag]):
+        v, = self._pre_operation(modeflag, 1, writeable_operation=False)
         self.debug("|{}| OUT {}".format(self.idx, v), DebugFlag.MEDIUM)
         self.debug("!! Program Output: {} !!".format(v), DebugFlag.LOW)
-        self.output_value = v
+        self.set_output_value(v)
         self.idx += 2
 
         if self.pause_on_output:
             self.status = StatusFlag.PAUSED
 
     # OPCODE: 05
-    def jump_if_true_x(self, modeflag: int):
-        v1, loc = self._pre_operation(modeflag, 2, writable_operation=False)
+    def jump_if_true_x(self, modeflag: List[ModeFlag]):
+        v1, loc = self._pre_operation(modeflag, 2, writeable_operation=False)
         self.debug("|{}| JIT {} -> [{}]".format(self.idx, v1, loc), DebugFlag.MEDIUM)
 
         if v1 != 0:
@@ -214,8 +289,8 @@ class IntCodeComputer:
             self.idx += 3
 
     # OPCODE: 06
-    def jump_if_false_x(self, modeflag: int):
-        v1, loc = self._pre_operation(modeflag, 2, writable_operation=False)
+    def jump_if_false_x(self, modeflag: List[ModeFlag]):
+        v1, loc = self._pre_operation(modeflag, 2, writeable_operation=False)
         self.debug("|{}| JIF {} -> [{}]".format(self.idx, v1, loc), DebugFlag.MEDIUM)
 
         if v1 == 0:
@@ -224,34 +299,42 @@ class IntCodeComputer:
             self.idx += 3
 
     # OPCODE: 07
-    def is_less_than_x(self, modeflag: int):
+    def is_less_than_x(self, modeflag: List[ModeFlag]):
         v1, v2, loc = self._pre_operation(modeflag, 3)
         self.debug("|{}| ISLT {} {} -> [{}]".format(self.idx, v1, v2, loc), DebugFlag.MEDIUM)
 
-        self.mem[loc] = int( v1 < v2 )
+        self.memory[loc] = int( v1 < v2 )
         self.idx += 4
 
     # OPCODE: 08
-    def is_equals_x(self, modeflag: int):
+    def is_equals_x(self, modeflag: List[ModeFlag]):
         v1, v2, loc = self._pre_operation(modeflag, 3)
         self.debug("|{}| ISEQ {} {} -> [{}]".format(self.idx, v1, v2, loc), DebugFlag.MEDIUM)
 
-        self.mem[loc] = int( v1 == v2 )
+        self.memory[loc] = int( v1 == v2 )
         self.idx += 4
 
+    def adjust_relative_base_x(self, modeflag: List[ModeFlag]):
+        v1, = self._pre_operation(modeflag, 1, writeable_operation=False)
+        self.debug("|{}| REL {} | {}".format(self.idx, v1, self.relative_base), DebugFlag.MEDIUM)
 
+        self.relative_base += v1
+        self.idx += 2
 ##  Tests
 
 def assert_program_memory(program:List[int], input_val, expected_output: List[int], debug: int=DebugFlag.OFF):
     computer = IntCodeComputer(program, input_user=input_val, debug=debug)
     computer.run()
-    assert computer.mem == expected_output, "Unexpected memory state after running program"
+    assert computer.memory == expected_output, "Unexpected memory state after running program"
 
-def assert_program_output(program: List[int], input_val, expected_output: int, debug: int=DebugFlag.OFF):
+def assert_program_output(program: List[int], input_val, expected_output, debug: int=DebugFlag.OFF):
     computer = IntCodeComputer(program, input_user=input_val, debug=debug)
     computer.run()
 
-    assert computer.output_value == expected_output, "Unexpected Output Value"
+    if callable(expected_output):
+        assert expected_output(computer.output_value)
+    else:
+        assert computer.output_value == expected_output, "Unexpected Output Value"
 
 
 def tests_day2():
@@ -265,7 +348,7 @@ def tests_day2():
     assert_program_memory([2,4,4,5,99,0], None, [2,4,4,5,99,9801], debug=debug)
     assert_program_memory([1,1,1,4,99,5,6,0,99], None, [30,1,1,4,2,5,6,0,99], debug=debug)
 
-    print("Day 2 tests passed!")
+    print("Day 2 tests passed")
 
 def tests_day5():
     # Day 5 tests
@@ -311,9 +394,46 @@ def tests_day7():
     assert_program_output([3, 11, 3, 12, 1, 11, 12, 13, 4, 13, 99, -1 , -1, 9], (4, 7), 11, debug=debug)
     print("Day 7 tests passed")
 
+def tests_day_9():
+    debug=DebugFlag.OFF
+
+    # The output value needs to be iterable if more than 1 outputs are given
+    assert_program_output([104, 0, 104, 1, 104, 2, 99], None, [0, 1, 2], debug=debug)
+    assert_program_output([109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99], None, [109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0, 99], debug=debug)
+    assert_program_output([1102,34915192,34915192,7,4,7,99,0], None, lambda x: len(str(x)) == 16, debug=debug)
+    assert_program_output([104,1125899906842624,99], None, 1125899906842624, debug=debug)
+    print("Day 9 tests passed")
+
+
+def test_memory():
+    memory = Memory()
+
+    [memory.append(i) for i in range(10)]
+
+    assert len(memory) == 10
+
+    assert memory[15] == 0
+    assert len(memory) == 16
+
+    memory[20] = -1
+    assert len(memory) == 21
+    assert memory[-1] == -1
+
+    print("Memory tests passed")
+
 def run_all_tests():
     tests_day2()
     tests_day5()
     tests_day7()
+    test_memory()
+    tests_day_9()
 
-run_all_tests()
+# run_all_tests()
+
+def test_203():
+    computer = IntCodeComputer([109, 10, 203, -5, 99, -1], debug=DebugFlag.EXTREME)
+    computer.run()
+    print(computer.memory)
+
+# test_203()
+# tests_day_9()
