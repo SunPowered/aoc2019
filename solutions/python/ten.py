@@ -1,5 +1,5 @@
 from collections import defaultdict
-from math import sqrt
+import math
 
 '''
 The Problem: 
@@ -19,6 +19,7 @@ class AsteroidMap:
 
 		self.map_str = map_str
 		self.members = set([])
+		self.destroyed_asteroids = list()
 		self.width = 0
 		self.height = 0
 
@@ -27,13 +28,13 @@ class AsteroidMap:
 
 	def parse_map(self, map_str=None):
 		
-		map_str = map_str or self.map_str
+		self.map_str = map_str or self.map_str
 
-		width = map_str.index('\n')
-		if map_str[width-1] == '\r':
+		width = self.map_str.index('\n')
+		if self.map_str[width-1] == '\r':
 			width -= 1
 
-		for y, line in enumerate(map_str.split('\n')):
+		for y, line in enumerate(self.map_str.split('\n')):
 			if len(line) == 0:
 				continue
 			assert len(line) == width, "{} != {}".format(len(line), width)
@@ -56,7 +57,7 @@ class AsteroidMap:
 
 	def unit_vector(self, vector: tuple)->float:
 		x, y = vector
-		norm = sqrt(self.vector_norm_sq(vector))
+		norm = math.sqrt(self.vector_norm_sq(vector))
 		return (round(x / norm,10), round(y/norm, 10))
 
 	def vector_norm_sq(self, vector):
@@ -138,6 +139,39 @@ class AsteroidMap:
 
 		print()
 
+	def destroy_asteroid(self, point):
+		if point not in self.members:
+			raise ValueError("No asteroid found at point ", point)
+		self.members.remove(point)
+		self.destroyed_asteroids.append(point)
+
+	def destroy(self, point):
+		# begin with vector [0,-1], rotate clockwise 
+		# x: 0 -> 1 -> 0 -> -1
+		# y: -1 -> 0 -> 1 -> 0
+		# maybe convert all unit vectors to degrees from up and sort?
+
+		# Create a copy of the map
+		destroyed_map = AsteroidMap(self.map_str)
+		# destroyed_map.members.remove(point)
+		# Get detectable asteroids
+		cnt = 0 
+		
+		while len(destroyed_map.members) > 1:
+			# import pdb; pdb.set_trace()
+			detectable = destroyed_map.detectable_asteroids(point)
+			detectable_inv = {v :k for k, v in detectable.items()}
+
+			for uv in sorted(detectable_inv.keys(), key=lambda p: math.pi - math.atan2(*p)):
+				cnt += 1
+
+				destroyed_point = detectable_inv[uv]
+				# Reverse lookup the point
+				destroyed_map.destroy_asteroid(destroyed_point)
+				
+		return destroyed_map.destroyed_asteroids
+
+
 def part1():
 	with open('input/ten.txt') as f:
 		map_str = f.read().strip()
@@ -148,6 +182,23 @@ def part1():
 	print(best_loc, ": ", best_count)
 	detected_asteroids = asteroid_map.detectable_asteroids(best_loc)
 	asteroid_map.print_map(start_point=best_loc, highlighted_points=detected_asteroids)
+	return asteroid_map
+
+def part2():
+	with open('input/ten.txt') as f:
+		map_str = f.read().strip()
+
+	asteroid_map = AsteroidMap(map_str)
+
+	# Find the best location
+	best_loc, best_count = asteroid_map.find_best_location()
+
+	print("Best location at: ", best_loc)
+	destroyed_asteroids = asteroid_map.destroy(best_loc)
+
+	d_ast_200 = destroyed_asteroids[199]
+	print("200th asteroid destroyed is ", d_ast_200)
+	print("p.x * 100 + p.y = ", d_ast_200[0]*100 + d_ast_200[1])
 
 def assert_best_location(map_str, expected_location, expected_count):
 	data = AsteroidMap(map_str)
@@ -240,6 +291,50 @@ def tests1():
 
 	print("Tests 1 passed")
 
+def tests2():
+	test_map = '''\
+.#..##.###...#######
+##.############..##.
+.#.######.########.#
+.###.#######.####.#.
+#####.##.#.##.###.##
+..#####..#.#########
+####################
+#.####....###.#.#.##
+##.#################
+#####.##.###..####..
+..######..##.#######
+####.##.####...##..#
+.#####..#.######.###
+##...#.##########...
+#.##########.#######
+.####.#.###.###.#.##
+....##.##.###..#####
+.#.#.###########.###
+#.#.#.#####.####.###
+###.##.####.##.#..##
+'''
+	asteroid_map = AsteroidMap(test_map)
+
+	best_loc, _ = asteroid_map.find_best_location()
+
+	d_ast = asteroid_map.destroy(best_loc)
+
+	assert d_ast[0] == (11, 12)
+	assert d_ast[1] == (12, 1)
+	assert d_ast[2] == (12, 2)
+	assert d_ast[9] == (12, 8)
+	assert d_ast[19] == (16, 0)
+	assert d_ast[49] == (16, 9)
+	assert d_ast[99] == (10, 16)
+	assert d_ast[198] == (9, 6)
+	assert d_ast[199] == (8, 2)
+	assert d_ast[200] == (10, 9)
+	assert d_ast[298] == (11, 1)
+	print("Tests 2 passed")
 
 # tests1()
+
+# tests2()
 part1()  # (17, 22)  288
+part2()  # (6, 16) -> 616
