@@ -7,7 +7,7 @@ computer = IntCodeComputer(program, debug=DebugFlag.OFF)
 computer.run()
 print(computer.output_value)
 
-#  4261108180
-
+# 1 -> 4261108180
+# 2 -> 77944
 
 
