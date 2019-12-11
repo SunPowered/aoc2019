@@ -54,7 +54,7 @@ class Memory(list):
 
 class IntCodeComputer:
 
-    def __init__(self, program: List[int]=None, input_user=None, debug=DebugFlag.OFF, pause_on_output: bool=False):
+    def __init__(self, program: List[int]=None, input_user=None, debug=DebugFlag.OFF, pause_on_output: bool=False, pause_on_input: bool=False):
         """
         An IntCode Computer.
 
@@ -64,6 +64,7 @@ class IntCodeComputer:
                         This is useful for testing the computer with known programs and inputs
             debug_level: A debug flag to spit out more information.  Higher levels are more verbose, 0 is off.
             pause_on_output: A boolean flag to enable breaking the program on an output command. 
+            pause_on_input: A boolean flag to enable breaking the program on an input command. 
         """
         self.program = program  # Store the original program for reference
         self.memory = Memory()  # Copy it to memory for working
@@ -72,6 +73,7 @@ class IntCodeComputer:
         self.set_input_values(input_user)
         self.debug_flag = debug
         self.pause_on_output = pause_on_output
+        self.pause_on_input = pause_on_input
         self.status = StatusFlag.READY   # This is set to indicate a progam break, or pause
         self.idx = 0                     # The instruction pointer
         self.relative_base = 0           # The relative address base
@@ -253,6 +255,10 @@ class IntCodeComputer:
     def input_x(self, modeflag: List[ModeFlag]):
         loc, = self._pre_operation(modeflag, 1)
         self.debug("|{}| INP: -> [{}]".format(self.idx, loc), DebugFlag.MEDIUM)
+
+        if self.pause_on_input:
+            self.status = StatusFlag.PAUSED
+            return
 
         if self.input_user is not None:
             try:
