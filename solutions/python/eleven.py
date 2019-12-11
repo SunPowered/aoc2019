@@ -12,7 +12,7 @@ class RobotDirection(Enum):
 
 class HullPaintingRobot:
 
-	def __init__(self, program):
+	def __init__(self, program=None):
 
 
 		self.current_loc = (0, 0)  						# The current location of the robot
@@ -59,12 +59,10 @@ class HullPaintingRobot:
 		return x_bounds, y_bounds
 
 	def print_state(self, bounds=None, size=None):
-
 		# Initialize the empty map  
 		size = size or 6
 
 		x_bounds, y_bounds = self.find_bounds(min_size=6)
-
 		print_state = [['.' for i in range(x_bounds[0], x_bounds[1]+1)] for i in range(y_bounds[0], y_bounds[1]+1)]
 
 		# Change all white painted squares
@@ -73,10 +71,10 @@ class HullPaintingRobot:
 				print_state[y-y_bounds[0]][x-x_bounds[0]] = '#' 
 
 		# Print your current position and 
-		print_state[self.current_loc[1]][self.current_loc[0]] = self.current_direction.value
+		print_state[self.current_loc[1]-y_bounds[0]][self.current_loc[0]-x_bounds[0]] = self.current_direction.value
 
 		print()
-		for row in print_state:
+		for row in print_state[::-1]:
 			print("".join(row))
 
 
@@ -126,10 +124,26 @@ def read_program():
 	return program
 
 def part1():
+	print("Part 1")
 	program = read_program()
 	robot = HullPaintingRobot(program)
+	print("Running")
 	robot.run()
 	print(len(robot.state))
+	robot.print_state()
 	print("Finished")
 
-part1() # 1885
+def part2():
+	print("Part 2")
+	program = read_program()
+	robot = HullPaintingRobot(program)
+	robot.state[robot.current_loc] = True   # Set the current location white
+	print("Running")
+	robot.run()
+	robot.print_state()
+	print("Finished")
+
+# part1() # 1885
+part2()  # BFEAGHAF
+
+# robot = HullPaintingRobot()

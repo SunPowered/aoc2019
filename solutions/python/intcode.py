@@ -17,6 +17,7 @@ class StatusFlag(Enum):
     READY = 0
     FINISHED = 1
     PAUSED = 2
+    NOT_READY = 3
 
 class ArgumentError(Exception):
     pass
@@ -66,18 +67,24 @@ class IntCodeComputer:
             pause_on_output: A boolean flag to enable breaking the program on an output command. 
             pause_on_input: A boolean flag to enable breaking the program on an input command. 
         """
-        self.program = program  # Store the original program for reference
+        self.status = StatusFlag.NOT_READY   # This is set to indicate a progam break, or pause
+        self.idx = 0   
+        self.output_value = None                  # The instruction pointer
+        self.relative_base = 0           # The relative address base
+
+        if program is not None:
+            self.set_program(program)  # Store the original program for reference
+        
         self.memory = Memory()  # Copy it to memory for working
         
         self.input_user = None
-        self.set_input_values(input_user)
+        if input_user is not None:
+            self.set_input_values(input_user)
+
         self.debug_flag = debug
         self.pause_on_output = pause_on_output
         self.pause_on_input = pause_on_input
-        self.status = StatusFlag.READY   # This is set to indicate a progam break, or pause
-        self.idx = 0                     # The instruction pointer
-        self.relative_base = 0           # The relative address base
-        self.output_value = None
+        
         self.op_codes = {
             1: self.add_x,
             2: self.multiply_x,
@@ -102,11 +109,13 @@ class IntCodeComputer:
 
     def set_program(self, program: List[int]):
         # Reset the program
-        self.program = program
-        # self.load_program()
-        self.output_value = None
-        self.idx = 0
-        self.status = StatusFlag.READY
+        if program is not None:
+            self.program = program
+            # self.load_program()
+            self.output_value = None
+            self.idx = 0
+            self.relative_base = 0
+            self.status = StatusFlag.READY
 
     def load_program(self, program: List[int] = None):
         program = program or self.program
