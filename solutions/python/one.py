@@ -1,7 +1,7 @@
 import os
 import math
 
-in_file = os.path.join(os.getcwd(), 'input', 'one.txt')
+in_file = os.path.join(os.getcwd(), 'input', '01.txt')
 
 assert os.path.isfile(in_file)
 assert os.path.exists(in_file)

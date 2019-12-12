@@ -1,6 +1,6 @@
 from intcode import IntCodeComputer, DebugFlag
 
-with open('input/nine.txt') as f:
+with open('input/09.txt') as f:
 	program = list(map(int, f.read().strip().split(',')))
 
 computer = IntCodeComputer(program, debug=DebugFlag.OFF)

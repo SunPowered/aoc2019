@@ -2,7 +2,7 @@ import os
 from collections import defaultdict
 from itertools import chain
 
-in_file = os.path.join(os.getcwd(), 'input', 'six.txt')
+in_file = os.path.join(os.getcwd(), 'input', '06.txt')
 
 assert os.path.exists(in_file), "No file found: {}".format(in_file)
 

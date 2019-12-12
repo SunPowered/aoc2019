@@ -1,7 +1,7 @@
 import os
 import collections
 
-in_file = os.path.join(os.getcwd(), 'input', 'three.txt')
+in_file = os.path.join(os.getcwd(), 'input', 'three03.txt')
 assert os.path.exists(in_file), "Missing input file: {}".format(in_file)
 
 # The idea is to be able to traverse an (x,y) grid based off input instructions

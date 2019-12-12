@@ -17,7 +17,7 @@ def part1():
 	print()
 	print("Part 1")
 
-	with open('input/seven.txt') as f:
+	with open('input/07.txt') as f:
 		program = list(map(int, f.read().strip().split(',')))
 	computer = IntCodeComputer(program, debug=DebugFlag.OFF)
 	

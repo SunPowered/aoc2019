@@ -173,7 +173,7 @@ class AsteroidMap:
 
 
 def part1():
-	with open('input/ten.txt') as f:
+	with open('input/10.txt') as f:
 		map_str = f.read().strip()
 
 	asteroid_map = AsteroidMap(map_str)
@@ -185,7 +185,7 @@ def part1():
 	return asteroid_map
 
 def part2():
-	with open('input/ten.txt') as f:
+	with open('input/10.txt') as f:
 		map_str = f.read().strip()
 
 	asteroid_map = AsteroidMap(map_str)

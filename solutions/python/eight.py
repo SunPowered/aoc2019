@@ -1,6 +1,6 @@
 import os
 from typing import List
-in_file = os.path.join(os.getcwd(), 'input', 'eight.txt')
+in_file = os.path.join(os.getcwd(), 'input', '08.txt')
 
 
 def parse_layers(data: List[int], width: int, height: int):

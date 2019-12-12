@@ -1,7 +1,6 @@
 import os
 
-in_file = os.path.join(os.getcwd(), 'input', 'five.txt')
-out_file = os.path.join(os.getcwd(), 'five_out_1.txt')
+in_file = os.path.join(os.getcwd(), 'input', '05.txt')
 
 assert os.path.exists(in_file), "Expecting input file: {}".format(in_file)
 

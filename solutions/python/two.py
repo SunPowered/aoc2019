@@ -1,7 +1,7 @@
 import os
 import numpy as np
 
-in_file = os.path.join(os.getcwd(), 'input', 'two.txt')
+in_file = os.path.join(os.getcwd(), 'input', '02.txt')
 assert os.path.isfile(in_file)
 assert os.path.exists(in_file)
 
