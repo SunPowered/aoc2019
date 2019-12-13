@@ -25,6 +25,10 @@ class ArgumentError(Exception):
 class MemoryAddressError(Exception):
     pass
 
+class ProgramFinished(Exception):
+    pass
+
+
 
 class Memory(list):
 
@@ -194,6 +198,11 @@ class IntCodeComputer:
         else:
             self.output_value = [self.output_value, v]
 
+    def reset_program(self):
+
+        self.load_program()
+        self.idx = 0
+
     def run(self, input_vals=None, debug: int=None):
         if input_vals is not None:
             self.set_input_values(input_vals)
@@ -204,9 +213,11 @@ class IntCodeComputer:
         self.debug("Running Program:  Size -> {}".format(len(self.program)), DebugFlag.LOW)
         self.debug(self.program, DebugFlag.MEDIUM)
         # If the status is already set, then we are resuming.  Otherwise, initialize the run
-        if self.status is StatusFlag.READY or self.status is StatusFlag.FINISHED:
-            self.load_program()
-            self.idx = 0
+        if self.status == StatusFlag.FINISHED:
+            raise ProgramFinished("Computer program has completed.  Use IntCodeComputer.reset_program() to start again")
+
+        if self.status is StatusFlag.READY:
+            self.reset_program()
         
         self.status = StatusFlag.READY
         while self.idx < len(self.program) and self.status is StatusFlag.READY:
