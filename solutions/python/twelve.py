@@ -48,12 +48,10 @@ class Planet:
 
 class Simulation:
 
-        def __init__(self, initial_positions: list, track_history = False):
+        def __init__(self, initial_positions: list):
 
                 self.planets = [Planet(pos) for pos in initial_positions]
                 self.cnt = 0  # Iteration counter
-                self.history = [] # Save position and velocity of each planet for a step in one element.  I think it all gets hashed at the end of the day
-                self.track_history = track_history
 
         def apply_gravity(self):
 
@@ -74,13 +72,10 @@ class Simulation:
                 for planet in self.planets:
                         planet.step()
 
-                if track_history or self.track_history:
-                        self.history.append(tuple((tuple(planet.position) for planet in self.planets)))
-
-        def run(self, n_steps: int, do_print = False, track_history=False):
+        def run(self, n_steps: int, do_print = False):
 
                 for i in range(n_steps):
-                        self.step(track_history)
+                        self.step()
 
                 #print()
                 #print("|{}|".format(self.cnt))
@@ -91,17 +86,73 @@ class Simulation:
                 #print()
 
         def run2(self):
+                init_positions = [planet.position for planet in self.planets]
+                init_x, init_y, init_z = list(zip(*init_positions))
+                init_v = tuple(0 for _ in self.planets) 
 
-                state = self.get_state()
-                history = set([])
+                max_count = 300000000
                 
-                while state not in history:
-                        history.add(state)
-                        self.step()
-                        state = self.get_state()
+                repeats = [None, None, None]
 
-                print("repeated state found at iteration: {}".format(self.cnt))
-                return self.cnt
+                while self.cnt < max_count and not all(repeats):
+
+                    if self.cnt % 100000 == 0:
+                        print(self.cnt)
+
+                    self.step()
+
+                    cur_x, cur_y, cur_z = list(zip(*[planet.position for planet in self.planets]))
+                    cur_vx, cur_vy, cur_vz = list(zip(*[planet.velocity for planet in self.planets]))
+                    
+                    # Check X
+                    if repeats[0] is not None and cur_x == init_x and cur_vx == init_v:
+                        print("X Repeat found at ", self.cnt)
+                        repeats[0] = self.cnt
+
+                    # Check y
+                    if repeats[1] is not None and cur_y == init_y and cur_vy == init_v:
+                        print("Y Repeat found at ", self.cnt)
+                        repeats[1] = self.cnt
+                    
+                    # Check z
+                    if repeats[2] is not None and cur_z == init_z and cur_vz == init_v:
+                        print("Z Repeat found at ", self.cnt)
+                        repeats[2] = self.cnt
+
+                if self.cnt >= max_count:
+                    print("Count limit exceeded: {}".format(max_count))
+                else:
+                    print("repeated states found at iterations: {}".format(repeats))
+                
+                return repeats
+
+        def run2_better(self):
+
+
+                initial_positions = [planet.position for planet in self.planets]
+                init_r = init_x, init_y, init_z = tuple(zip(*initial_positions))
+
+                repeats = []
+
+
+
+                for i in range(3):
+                    print("Checking axis: ", i)
+                    self.cnt = 0
+
+                    while True:
+
+                        self.step()
+
+                        cur_pos = [planet.position[i] for planet in self.planets]
+                        cur_vel = [planet.velocity[i] for planet in self.planets]
+
+                        if cur_pos == init_r[i] and cur_vel == [0,0,0]:
+                            print("Found repeat for axis {}: {}".format(i, self.cnt))
+                            repeats.append(self.cnt)
+                            break
+
+                print(repeats)
 
         def next(self, n_steps=100):
             # Returns a generator yielding successive positions
@@ -223,9 +274,9 @@ def part2():
 
         sim = Simulation(parse_input(input_str))
 
-        counts = sim.run2()
-
-        print("Repeated state after {} steps".format(counts))
+        repeats = sim.run2()
+        print("Found repeats: ", repeats)
+        #print("Repeated state after {} steps".format(counts))
 
 def animate_sim():
     
@@ -261,13 +312,11 @@ def animate_sim():
     ani = animation.FuncAnimation(f, update, frames=(frame for frame in sim.next(1000)), init_func=init, interval=50)   
     plt.show()
 
-animate_sim()
-# will_this_animate()
-
+# animate_sim()
 
 # test1()
 # test2()
 # test3()
 #part1() # 5937
 
-# part2()
+part2()
