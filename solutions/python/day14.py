@@ -133,6 +133,23 @@ class Nanofactory:
 			debug(f"Storing remaining {extra} of {target_name}  to store")
 			self.store[target_name] += extra
 
+	def how_much_fuel(self, ore_amount=1e12):
+		# how much for one fuel
+
+		fuel_produced = 1
+		self.produce('FUEL', 1)
+		single_fuel_needs = self.ore_used
+		# Quick and dirty, how much
+
+		# how much ore can we use
+		while (ore_amount - self.ore_used) > single_fuel_needs:
+			
+			fuel_needed = math.floor((ore_amount - self.ore_used) / single_fuel_needs)
+			fuel_produced += fuel_needed
+			self.produce('FUEL', fuel_needed)
+
+		return fuel_produced
+
 def part1():
 
 	with open('input/14.txt') as f:
@@ -143,7 +160,11 @@ def part1():
 
 	nanofactory.produce('FUEL', 1)
 
-	print(f"Fuel required: {nanofactory.ore_used}")
+	print(f"1 Fuel requires: {nanofactory.ore_used} ore")
+
+	nanofactory = Nanofactory(reactions)
+	fuel_amount = nanofactory.how_much_fuel()
+	print(f"You can produce {fuel_amount} fuel")
 
 def test1():
 	input_str = '''\
@@ -201,6 +222,10 @@ def test2():
 	actual_output = factory.ore_used
 	assert actual_output == expected_output, f"Expected: {expected_output}. Got: {actual_output}"
 
+	factory = Nanofactory(reactions)
+	expected_output = 82892753
+	actual_output = factory.how_much_fuel()
+	assert actual_output == expected_output, f"Expected: {expected_output}. Got: {actual_output}"
 	print("Tests 2 passed")
 
 def test3():
@@ -225,6 +250,11 @@ def test3():
 	factory.produce('FUEL', 1)
 	expected_output = 180697 
 	actual_output = factory.ore_used
+	assert actual_output == expected_output, f"Expected: {expected_output}. Got: {actual_output}"
+
+	factory = Nanofactory(reactions)
+	expected_output = 5586022 
+	actual_output = factory.how_much_fuel()
 	assert actual_output == expected_output, f"Expected: {expected_output}. Got: {actual_output}"
 
 	print("Tests 3 passed")
@@ -258,6 +288,11 @@ def test4():
 	actual_output = factory.ore_used
 	assert actual_output == expected_output, f"Expected: {expected_output}. Got: {actual_output}"
 
+	factory = Nanofactory(reactions)
+	expected_output = 460664  
+	actual_output = factory.how_much_fuel()
+	assert actual_output == expected_output, f"Expected: {expected_output}. Got: {actual_output}"
+
 	print("Tests 4 passed")
 
 def run_tests():
@@ -266,8 +301,8 @@ def run_tests():
 	test3()
 	test4()
 
-run_tests()
+# run_tests()
 
-#part1()  # 1037742
+part1()  # 1037742
 
 
